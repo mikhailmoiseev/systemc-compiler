@@ -1,0 +1,87 @@
+
+\subsection{SystemVerilog intrinsic insertion}\label{section:black_box}
+
+This section describe how to insert SystemVerilog intrinsic ("black box") module.
+
+ICSC supports replacement a SystemC module with given SystemVerilog intrinsic module. In this case no parsing of the SystemC module is performed, so this module can contain non-synthesizable code. To replace SystemC module it needs to define {\tt \_\_SC\_TOOL\_VERILOG\_MOD\_\_} variable of {\tt std::string} type in the module body.
+{\tt \_\_SC\_TOOL\_VERILOG\_MOD\_\_} value can be specified in place or in the module constructor.
+
+There are two common usages:
+\begin{enumerate}
+\item Replace with given SystemVerilog module: \_\_SC\_TOOL\_VERILOG\_MOD\_\_ contains SV module code or {\tt \#include} directive;
+\item Do not generate module at all: \_\_SC\_TOOL\_VERILOG\_MOD\_\_ is empty string. 
+\end{enumerate}
+%
+In second case SystemVerilog module implementation needs to be provided in an external file.
+
+\begin{lstlisting}[style=mycpp]
+struct my_register : sc_module {
+  std::string __SC_TOOL_VERILOG_MOD__[] = R"(
+     module my_register (
+        input  logic [31:0] din,
+        output logic [31:0] dout
+     );
+     assign dout = din;
+     endmodule)";
+
+  SC_CTOR (my_register) {...}
+  ...
+}
+\end{lstlisting}
+%
+\begin{lstlisting}[style=mycpp]
+// SystemVerilog generated
+// Verilog intrinsic for module: my_register 
+module my_register (
+    input  logic [31:0] din,
+    output logic [31:0] dout
+);
+assign dout = din;
+endmodule
+\end{lstlisting}
+
+
+
+\subsection{Memory module name}
+
+This section describes how to create a custom memory module with module name specified. 
+
+To support vendor memory it needs to specify memory module name at instantiation point and exclude the SV module code generation (memory module is external one). To exclude SV module code generation empty {\tt \_\_SC\_TOOL\_VERILOG\_MOD\_\_} should be used. To specify memory module name it needs to define {\tt \_\_SC\_TOOL\_MODULE\_NAME\_\_} variable in the module body and initialize it with required name string.
+
+If there are two instances of the same SystemC module, it is possible to give them different names, but {\tt \_\_SC\_TOOL\_VERILOG\_MOD\_\_} must be declared in the module. If {\tt \_\_SC\_TOOL\_VERILOG\_MOD\_\_} is not declared the SystemC module, only one SV module with first given name will be generated . 
+
+Module name could be specified for module with non-empty {\tt \_\_SC\_TOOL\_VERILOG\_MOD\_\_}, but module names in {\tt \_\_SC\_TOOL\_MODULE\_NAME\_\_} and {\tt \_\_SC\_TOOL\_VERILOG\_MOD\_\_} should be the same.
+
+If specified module name in module without {\tt \_\_SC\_TOOL\_VERILOG\_MOD\_\_} declaration conflicts with another module name, it updated with numeric suffix. Specified name in module with {\tt \_\_SC\_TOOL\_VERILOG\_MOD\_\_}  declaration never changed, so name uniqueness should be checked by user.
+
+\begin{lstlisting}[style=mycpp]
+// Memory stub example
+struct memory_stub : sc_module {
+    // Disable Verilog module generation
+    std::string __SC_TOOL_VERILOG_MOD__[] = "";  
+    // Specify module name at instantiation
+    std::string __SC_TOOL_MODULE_NAME__;             
+    explicit memory_stub(const sc_module_name& name,
+                         const char* verilogName = "") :
+        __SC_TOOL_MODULE_NAME__(verilogName)
+    {}
+};
+
+// Memory instance at some module
+memory_stub  stubInst1{"stubInst1", "pxxxrf256x32ben"};
+memory_stub  stubInst2{"stubInst2", "pxxxsram1024x32ben"};
+memory_stub  stubInst3{"stubInst3"};
+stubInst1.clk(clk); 
+stubInst2.clk(clk); 
+stubInst3.clk(clk); 
+...
+\end{lstlisting}
+%
+\begin{lstlisting}[style=mycpp]
+// SystemVerilog generated 
+pxxxrf256x32ben     stubInst1(.clk(clk), ...);
+pxxxsram1024x32ben  stubInst2(.clk(clk), ...);
+memory_stub         stubInst3(.clk(clk), ...);
+\end{lstlisting}
+
+
