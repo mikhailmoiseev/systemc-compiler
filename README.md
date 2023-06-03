@@ -2,6 +2,8 @@
 
 *\*Other names and brands may be claimed as the property of others.*
 
+This repository is copy of https://github.com/intel/systemc-compiler
+
 ## Introduction
 
 Intel&reg; Compiler for SystemC* (ICSC) translates synthesizable SystemC design to synthesizable SystemVerilog design.
